@@ -13,8 +13,7 @@
 #include <sstream>
 #include <filesystem>
 
-using namespace std;
-using namespace std::tr2::sys;
+
 
 
 // TODO: Установите здесь ссылки на дополнительные заголовки, требующиеся для программы

@@ -1,6 +1,8 @@
 // FileCopyCheck.cpp: определ€ет точку входа дл€ консольного приложени€.
 //
+//#define _CRT_SECURE_NO_WARNINGS
 #include "stdafx.h"
+
 
 using namespace std;
 using namespace std::tr2::sys;
@@ -12,138 +14,149 @@ path getPath(recursive_directory_iterator it) {
 	return p;
 }
 
-void printPath(recursive_directory_iterator it1, recursive_directory_iterator it2, int c1, int c2)
+//функци€ вывода путей сразу с двух папок
+void printPath(recursive_directory_iterator it1, recursive_directory_iterator it2)
 {
 	if (!is_directory(*it1) && !is_directory(*it2)) {
-		std::cout << *it1 << " " << c1 << "	" << c2 << " " << *it2 << '\n';
+		std::cout << *it1 <<   "		" << *it2 << '\n';
 	}
 }
-
-void printPath(recursive_directory_iterator it, bool dest, int c)
+//функци€ вывода пути с одной папки
+void printPath(recursive_directory_iterator it, bool dest)
 {
-	if (!is_directory(*it) && dest) {
-		std::cout <<  "		" << "	" << c << " " << *it << '\n';
+	if (!is_directory(*it) && dest) { // провер€ем папки ли пр€четс€ под итераторм, так как нас интересуют только файлы
+		std::cout <<  "		" << "		" << *it << '\n';
 	}
 	else {
 		if (!is_directory(*it)) {
-			std::cout << *it << " " << c << '	' << '\n';
+			std::cout << *it << "		" <<  '\n';
 		}
 	}
+}
+
+path copyPath(path filepath, path destpath) {
+	string folderName = destpath.parent_path().stem().string();
+	string addpath = filepath.string().substr(folderName.length() + filepath.string().find(folderName, 0) - 2);
+	path cpPath (destpath.string() +addpath);
+	return cpPath;
 }
 
 int main(int argc, char* argv[])
 {
-	path sourceFolder(L"D:\\SUZUN");
-	path destinationFolder(L"D:\\for project\\SUZUN");
+	ofstream log("log.txt");	
+	setlocale(LC_CTYPE, "rus");
+	path sourceFolder(L"D:\\SUZUN"); // исходна€ папка
+	path destinationFolder(L"D:\\for project\\SUZUN"); // конечна€
 
 	
-	//wcout << firstFolderpath.parent_path();
+	//объ€вл€ем итераторы 
 	recursive_directory_iterator it_source(sourceFolder);
 	recursive_directory_iterator it_dest(destinationFolder);
 	const recursive_directory_iterator it_end;
 
-	//cout << sourceFolder.stem() << endl;
-	//cout << destinationFolder.stem() << endl;
-	int s = 0, d = 0;
+	
+	
 	while (it_source != it_end || it_dest != it_end)
 	{
-		if (is_directory(*it_source)) {
-			++it_source; ++s;
-			continue;
-		}
-		if (is_directory(*it_dest)) {
-			++it_dest; ++d;
-			continue;
-		}
 		
-		if (it_source != it_end && it_dest == it_end) {
-			printPath(it_source, 0,s);
-			//std::cout << *it_source << "	" << '\n';
-			++it_source; ++s;
+		if (it_source != it_end && it_dest == it_end) {							// случай, итератор обошел все файлы и папки конечной папки
+			printPath(it_source, 0);
+			path ps = getPath(it_source);
+			++it_source;
+			copy(ps, copyPath(ps, destinationFolder).parent_path());
+			log << copyPath(ps, destinationFolder) << "		" << "Ѕыл скопирован" << endl;
 		
 		}
-		if (it_source == it_end && it_dest != it_end) {
-			printPath(it_dest, 1,d);
-			//std::cout << "		" << "	" << *it_dest << '\n';
-			++it_dest; ++d;
+		if (it_source == it_end && it_dest != it_end) {							// случай, итератор обошел все файлы и папки исходной папки
+			printPath(it_dest, 1);
+			++it_dest; 
 			
 		}
-		if (it_source != it_end && it_dest != it_end) {
-			//const directory_entry &entrys = *it_source;
-			//const path &ps = entrys.path();
+		if (it_source != it_end && it_dest != it_end) {							// случай когда оба итератора не обошли все файлы папки
 			path ps = getPath(it_source);
-			path pd = getPath(it_dest);
-			if (ps.filename() == pd.filename())
-			{
-				printPath(it_source, it_dest, s, d);
-				//std::cout << *it_source << '	' << *it_dest << '\n';
-				++it_source; ++s;
-				++it_dest; ++d;
+			path pd = getPath(it_dest);											// извлекаем путь из итератора
+			if (is_directory(*it_source)) {										// папки нас не интересуют
+				++it_source; 
+				continue;
 			}
-			else {
-				if (ps.filename() > pd.filename()) {
-					if (ps.filename() != pd.filename())
-					{
-						printPath(it_dest, 1, d);
-						//std::cout << "		" << "	" << *it_dest << '\n';
-						++it_dest; ++d;
-										}
+			if (is_directory(*it_dest)) {										// папки нас не интересуют
+				++it_dest; 
+				continue;  
+			}
+
+			if (ps.parent_path().stem() == pd.parent_path().stem()) {			//проверка на идентичность файлов
+				if (ps.filename() == pd.filename())								// когда
+				{
+
+					printPath(it_source, it_dest);
+					if (last_write_time(ps) > last_write_time(pd)) {
+						copy_file(ps, pd, copy_options::overwrite_existing);
+						log << pd << "		" << "Ѕыл заменен" << endl;
+					}
+					++it_source;
+					++it_dest;
 				}
 				else {
-					if (ps.filename() != pd.filename())
-					{
-						printPath(it_source, 0, s);
-						//std::cout << *it_source << '	' << '\n';
-						++it_source; ++s;
+					if (ps.filename() > pd.filename()) {
+						if (ps.filename() != pd.filename())
+						{
+							printPath(it_dest, 1);
+							++it_dest;
+						}
+					}
+					else {
+						if (ps.filename() != pd.filename())
+						{
+							printPath(it_source, 0);
+							path ps = getPath(it_source);
+							copy(ps, copyPath(ps, destinationFolder).parent_path());
+							log << copyPath(ps, destinationFolder) << "		" << "Ѕыл скопирован"<< endl;
+							++it_source;
+						}
 					}
 				}
-				
 			}
-			//cout << *it_source << '	' << *it_dest << '\n';
-			
+			else {																// случай когда сравниваемые файлы с одинаковыми именами лежат в разны папках
+				if (ps.parent_path().stem() > pd.parent_path().stem()) {
+					if (ps.parent_path().stem() != pd.parent_path().stem())
+					{
+						printPath(it_dest, 1);
+						++it_dest;
+					}
+				}
+				else {
+					if (ps.parent_path().stem() != pd.parent_path().stem())
+					{
+						printPath(it_source, 0);
+						path ps = getPath(it_source);
+						path cpdebug = copyPath(ps, destinationFolder);
+						copy(ps, copyPath(ps, destinationFolder).parent_path());
+						log << copyPath(ps, destinationFolder) << "		" << "Ѕыл скопирован" << endl;
+						++it_source;
+					}
+				}
+
+			}
+					
 		}
-			//++it_source;
-			//++it_dest;
 	}
 	
-
-	//cout << *it_dest;
-	
-	/*for (auto& p : recursive_directory_iterator(sourceFolder)) 
-		if (is_directory(p)) 
-		std::cout << "(DIR) " << p << '\n';
-
-	for (auto& p : recursive_directory_iterator(sourceFolder))
-		if (!is_directory(p))
-			std::cout << "      " << p << '\n';
-		
-	cout << endl;
-	for (auto& p : recursive_directory_iterator(destinationFolder))
-		if (is_directory(p))
-			std::cout << "(DIR) " << p  << '\n';
-
-	for (auto& p : recursive_directory_iterator(destinationFolder))
-		if (!is_directory(p))
-			std::cout << "      " << p << '\n';*/
+	log.close();
 	
 	
 	
 
 	//сравнение с последующей перезаписью
-	if (last_write_time("D:\\SUZUN\\lol.txt") > last_write_time("D:\\for project\\SUZUN\\lol.txt")) {
-		std::cout << "source";
-		copy_file("D:\\SUZUN\\lol.txt", "D:\\for project\\SUZUN\\lol.txt", copy_options::overwrite_existing);
-	}
-	else 
-	{
-		std::cout << "destination";
-	}
+	
 
 
 	std::cout << endl;
-	path first("D:\\SUZUN\\lol.txt");
-	path second("D:\\for project\\SUZUN\\lol.txt");
-	std::cout << first.filename() << ' ' << second.filename() << endl;
+	path first("D:\\SUZUN\\Data\\2.txt");
+	path second("D:\\for project\\SUZUN");
+	string folderName =second.parent_path().stem().string();
+	std::cout << first.string().find(folderName, 0)<< endl;
+	std::cout << first.string().substr(folderName.length() + 3) << endl;
+	std::cout << second.string() + first.string().substr(folderName.length() + 3 - 1)<< endl;
 	std::system("pause");
     return 0;
 } 

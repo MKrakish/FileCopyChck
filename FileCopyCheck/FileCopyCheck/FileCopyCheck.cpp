@@ -26,6 +26,13 @@ wstring check_string(wstring str) {
 	return str;
 }
 
+path chech_str_path(path pth) {
+	wstring str = pth.wstring();
+	str = check_string(str);
+	pth = path(str);
+	return pth;
+}
+
 int dir_level(wstring dir) {
 	int count = 0;
 	for (int i = 0; i < dir.length(); i++) {
@@ -68,7 +75,11 @@ path get_path() {
 
 path copyPath(path filepath, path destpath) {
 	wstring folderName = destpath.stem().wstring();
-	wstring addpath = filepath.wstring().substr(folderName.length() + filepath.wstring().find(folderName, 0));
+	//std::wcout << folderName << endl;
+	int start = filepath.wstring().find_last_of(folderName, filepath.wstring().length())+1;
+	//std::wcout << start << endl;
+	wstring addpath = filepath.wstring().substr(start); 
+	//std::wcout << addpath << endl;																							
 	path cpPath (destpath.wstring() + addpath);
 	return cpPath;
 }
@@ -82,19 +93,20 @@ int main(int argc, char* argv[])
 	wstring source; path sourceFolder;
 	wstring dest; path destinationFolder;
 	int rcount = 0;
-	wstring test;
+	//wstring test;
 	//getline(std::wcin, source); //wcin >> source;
-	dest = L"D:\\for project\\SUZUN\\Data";
-	source = L"D:\\SUZUN" ;
-	path psource(source);
-	path pdest(dest);
-	std::cout << copyPath(path(source), path(dest)) << endl;
-	std::cout << pdest.stem().string() << endl;
-	std::cout << psource.string().find(psource.stem().string(), 0) << endl;
-	std::cout << 1 << endl;
+	//dest = L"D:\\for project\\SUZUN\\Data\\card\\SUZUN"; //\\Data\\SUZUN
+	//source = L"D:\\SUZUN\\Data\\SUZUN\\" ;//\\Data\\card
+	//path psource(source);
+	//path pdest(dest);
+	//std::cout << copyPath(path(source), path(dest)) << endl;
+	//std::cout << source.substr(3,6) << endl; 
+	//std::cout << source.find_last_of(L"SUZUN", source.length()) << endl;
+	//std::cout << psource.string().find(psource.stem().string(), 0) << endl;
+	//std::cout << psource.wstring().substr(pdest.stem().string().length() + psource.wstring().find(folderName, 0)) << endl;
 	//getline(std::wcin, dest); //wcin >> dest;
-	source = check_string(source);
-	dest = check_string(dest);
+	//source = check_string(source);
+	//dest = check_string(dest);
 	std::cout << "¬ведите путь исходной папки." << endl;
 	while (!exists(sourceFolder)) {
 		sourceFolder = get_path();

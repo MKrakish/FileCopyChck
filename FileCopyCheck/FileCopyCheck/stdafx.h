@@ -5,16 +5,23 @@
 
 #pragma once
 
-#include "targetver.h"
+
 
 #include <stdio.h>
+#include <cstdio>
+
+
+
+
+
+// TODO: Установите здесь ссылки на дополнительные заголовки, требующиеся для программы
 #include <tchar.h>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <filesystem>
 
-
-
-
-// TODO: Установите здесь ссылки на дополнительные заголовки, требующиеся для программы
+#include <windows.h>
+#include <sql.h>
+#include <sqlext.h>
+#include <sqltypes.h>

@@ -1,8 +1,20 @@
 // FileCopyCheck.cpp: определяет точку входа для консольного приложения.
 //
 //#define _CRT_SECURE_NO_WARNINGS
+//#define INITGUID
+//#define DBINITCONSTANTS
 
+
+//#import "msado15.dll" 
 #include "stdafx.h"
+#include <stdio.h>
+#include <windows.h>
+
+#import "c:\Program Files (x86)\Common Files\System\ADO\msado20.tlb"  rename ("EOF","adoEOF") no_namespace 
+//const GUID CLSID_MSDASQL = { 0xC8B522CBL,0x5CF3,0x11CE,{ 0xAD,0xE5,0x00,0xAA,0x00,0x44,0x77,0x3D } };
+
+// OLE DB - ODBC провайдеры
+
 
 
 
@@ -184,66 +196,55 @@ int main(int argc, char* argv[])
 {
 	setlocale(LC_CTYPE, "rus");
 	
-	SQLHANDLE sqlenvhandle;
-	SQLHANDLE sqlconnectionhandle;
-	SQLHANDLE sqlstatementhandle;
-	SQLRETURN retcode;
-
-	do
+	HRESULT hr = S_OK;
+	try
 	{
-		if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &sqlenvhandle))
-			break;
+		CoInitialize(NULL);
+		// Define string variables.
+		_bstr_t strCnn("Provider=SQLOLEDB.1;Persist Security Info=True; User ID=sa;Password=1;Initial Catalog=web-adku;Data Source=srv-tm-ias;");
+		
+		_RecordsetPtr pRstAuthors = NULL;
 
-		if (SQL_SUCCESS != SQLSetEnvAttr(sqlenvhandle, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0))
-			break;
+		// Call Create instance to instantiate the Record set
+		hr = pRstAuthors.CreateInstance(__uuidof(Recordset));
 
-		if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_DBC, sqlenvhandle, &sqlconnectionhandle))
-			break;
-
-		SQLWCHAR retconstring[1024];
-		switch (SQLDriverConnect(sqlconnectionhandle, NULL,
-			(SQLWCHAR*)"DRIVER={SQL Server};SERVER=srv-tm-ias,1433;DATABASE=DNS2Y;UID=sa;PWD=1;",
-			SQL_NTS, retconstring, 1024, NULL, SQL_DRIVER_NOPROMPT))
+		if (FAILED(hr))
 		{
-		case SQL_SUCCESS_WITH_INFO:
-			show_error(SQL_HANDLE_DBC, sqlconnectionhandle);
-			std::cout << "SUCCESS_WITH_INFO" << endl;
-			break;
-		case SQL_INVALID_HANDLE:
-		case SQL_ERROR:
-			show_error(SQL_HANDLE_DBC, sqlconnectionhandle);
-			retcode = -1;
-			std::cout << "INVALID_HANDLE or SQL_ERROR" << endl;
-			break;
-		default:
-			break;
+			printf("Failed creating record set instance\n");
+			return 0;
 		}
 
-		if (retcode == -1)
-			break;
+		//Open the Record set for getting records from Author table
+		pRstAuthors->Open("SELECT connectionstring from branches", strCnn, adOpenStatic, adLockReadOnly, adCmdText);
 
-		if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, sqlconnectionhandle, &sqlstatementhandle))
-			break;
+		//Declare a variable of type _bstr_t
+		_bstr_t valField1;
+		int valField2;
 
-		/*if (SQL_SUCCESS != SQLExecDirect(sqlstatementhandle, (SQLWCHAR*)"select * from [web-adku].[dbo].[Branches]", SQL_NTS))
+		pRstAuthors->MoveFirst();
+
+		//Loop through the Record set
+		if (!pRstAuthors->adoEOF)
 		{
-			show_error(SQL_HANDLE_STMT, sqlstatementhandle);
-			break;
-		}
-		else
-		{
-			char name[64];
-			while (SQLFetch(sqlstatementhandle) == SQL_SUCCESS)
+			while (!pRstAuthors->adoEOF)
 			{
-				SQLGetData(sqlstatementhandle, 4, SQL_C_CHAR, name, 64, NULL);
-				cout << name << endl;
+				valField1 = pRstAuthors->Fields->GetItem("connectionstring")->Value;
+				//valField2 = pRstAuthors->Fields->GetItem("Author_ID")->Value.intVal;
+				cout << ((LPCSTR)valField1) << endl;
+				pRstAuthors->MoveNext();
 			}
-		}*/
-	} while (FALSE);
-	SQLFreeHandle(SQL_HANDLE_STMT, &sqlstatementhandle);
-	SQLDisconnect(&sqlconnectionhandle);
-	SQLFreeHandle(SQL_HANDLE_DBC, &sqlconnectionhandle);
-	SQLFreeHandle(SQL_HANDLE_ENV, sqlenvhandle);
+		}
+
+	}
+	catch (_com_error &ce)
+	{
+		cout << ce.Description() << endl;
+		//printf("Error:%s\n", ce.Description());
+	  //printf(&ce.Error);
+	}
+
+	CoUninitialize();
+	
 	
 
 	std::system("pause");

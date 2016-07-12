@@ -3,206 +3,48 @@
 //#define _CRT_SECURE_NO_WARNINGS
 //#define INITGUID
 //#define DBINITCONSTANTS
-
+//#ifndef XMLCheckResult	\
+#define XMLCheckResult(a_eResult) if (a_eResult != XML_SUCCESS) { printf("Error: %i\n", a_eResult); return a_eResult; }	\
+#endif
 
 //#import "msado15.dll" 
 #include "stdafx.h"
 #include <stdio.h>
 #include <windows.h>
+//#include "TinyXML\tinyxml2.h"
+//#include "TinyXML\tinyxml2.cpp"
+#include <objbase.h>
+#include <MsXml6.h> raw_interfaces_only
 
-#import "c:\Program Files (x86)\Common Files\System\ADO\msado20.tlb"  rename ("EOF","adoEOF") no_namespace 
-//const GUID CLSID_MSDASQL = { 0xC8B522CBL,0x5CF3,0x11CE,{ 0xAD,0xE5,0x00,0xAA,0x00,0x44,0x77,0x3D } };
+#include "filecopyfunc.h"
+
+#import "c:\Program Files (x86)\Common Files\System\ADO\msado20.tlb"  rename ("EOF","adoEOF") no_namespace
+
+
+
+
+#define CHK_HR(stmt)        do { hr=(stmt); if (FAILED(hr)) goto CleanUp; } while(0)
+// Macro to verify memory allcation.
+#define CHK_ALLOC(p)        do { if (!(p)) { hr = E_OUTOFMEMORY; goto CleanUp; } } while(0)
+// Macro that releases a COM object if not NULL.
+#define SAFE_RELEASE(p)     do { if ((p)) { (p)->Release(); (p) = NULL; } } while(0)
 
 // OLE DB - ODBC провайдеры
-
-
-
 
 using namespace std;
 using namespace std::tr2::sys;
 
-//функция получения пути через итератор
-path getPath(recursive_directory_iterator it) {
-	const directory_entry &entry = *it;
-	const path &p = entry.path();
-	return p;
-}
-
-//функция вывода путей сразу с двух папок
-void printPath(path p1) {
-	std::cout << p1 << '\n';
-}
-wstring check_string(wstring str) {
-	if (str[str.length() - 1] == '\\') {
-		str.erase(str.end() - 1, str.end());
-	}
-	return str;
-}
-
-path chech_str_path(path pth) {
-	wstring str = pth.wstring();
-	str = check_string(str);
-	pth = path(str);
-	return pth;
-}
-
-int dir_level(wstring dir) {
-	int count = 0;
-	for (int i = 0; i < dir.length(); i++) {
-		if (dir[i] == '\\') {
-			count++;
-		}
-	}
-	return count;
-}
-int dir_level(path dir) {
-	int count = 0; wstring dirstr;
-	dirstr = dir.wstring();
-	count = dir_level(dirstr);
-	return count;
-}
-
-wstring get_path_str() {
-	wstring dir_string; bool isPath = 0;
-	while (!isPath) {
-		getline(std::wcin, dir_string);
-		path dir(dir_string);
-		if (dir.parent_path() == "\0") {
-			std::cout << "Введеный текст не явялется путём. Попробуйте снова." << endl;
-		}
-		else {
-			isPath = 1;
-		}
-	}
-	dir_string = check_string(dir_string);
-	return dir_string;
-}
-
-path get_path() {
-	wstring dir_string = get_path_str();
-	path dir(dir_string);
-	return dir;
-}
 
 
-
-path copyPath(path filepath, path destpath) {
-	wstring folderName = destpath.stem().wstring();
-	int start = filepath.wstring().find_last_of(folderName, filepath.wstring().length()) + 1;
-	wstring addpath = filepath.wstring().substr(start);
-	path cpPath(destpath.wstring() + addpath);
-	return cpPath;
-}
-
-void copyFolder() {
-	time_t t = time(NULL);
-	tm* aTm = localtime(&t);
-	std::cout << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
-	wstring source; path sourceFolder;
-	wstring dest; path destinationFolder;
-	int rcount = 0;
-	std::cout << "Введите путь исходной папки." << endl;
-	while (!exists(sourceFolder)) {
-		sourceFolder = get_path();
-		if (exists(sourceFolder)) {
-			continue;
-		}
-		std::cout << "Данный путь не существует. Введите новый." << endl;
-	}
-	std::cout << "Введите путь конечной папки." << endl;
-	while (!exists(destinationFolder.parent_path()) || (sourceFolder.stem() != destinationFolder.stem()) || (destinationFolder == sourceFolder)) {
-		destinationFolder = get_path();
-		bool f = sourceFolder.stem() != destinationFolder.stem();
-		if (sourceFolder.stem() != destinationFolder.stem()) {
-			std::cout << "Названия папок не идентичны" << endl;
-			continue;
-		}
-		if (sourceFolder == destinationFolder) {
-			std::cout << "Эта та же самая папка, чувак" << endl;
-			continue;
-		}
-		if (exists(destinationFolder.parent_path())) {
-			continue;
-		}
-		std::cout << "Промежуточные папки не существуют. Введите новый путь." << endl;
-	}
-
-
-
-
-
-	ofstream log("log.txt", ios_base::trunc);
-	log << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
-	recursive_directory_iterator it_source(sourceFolder);
-	const recursive_directory_iterator it_end;
-
-
-	if (!exists(destinationFolder)) {
-		create_directory(destinationFolder);
-	}
-
-
-	std::cout << "ПКБ \"АСУ-Нефть\" 2016." << endl;
-	std::cout << "Копирование началось" << endl;
-	int count = 0;
-	while (it_source != it_end)
-	{
-		path ps = getPath(it_source);
-		path newpath = copyPath(ps, destinationFolder);
-
-		if (is_directory(*it_source)) {
-			++it_source;
-			continue;
-		}
-
-		if (!exists(newpath))
-		{
-			create_directories(newpath.parent_path());
-			copy(ps, newpath); count++;
-			log << newpath << "\t" << "Был скопирован" << endl;
-		}
-		else {
-			if (last_write_time(ps) > last_write_time(newpath)) {
-				copy(ps, newpath, copy_options::overwrite_existing); count++;
-				log << newpath << "\t" << "Был заменен" << endl;
-			}
-		}
-		++it_source;
-	}
-
-	if (count == 0) {
-		std::cout << "Файлы в обновлении не нуждаются, либо Вы используете старую папку-источник" << endl;
-		log << "Файлы в обновлении не нуждаются, либо Вы используете старую папку-источник" << endl;
-	}
-	else {
-		std::cout << "Копирование завершено. log.txt - данные о скопированых файлах." << endl;
-		std::cout << "Скопировано " << count << " файлов(а)" << endl;
-		log << "Копирование завершено. log.txt - данные о скопированых файлах." << endl;
-		log << "Скопировано " << count << " файлов(а)" << endl;
-	}
-	log.close();
-}
-
-void show_error(unsigned int handletype, const SQLHANDLE &handle)
+void connectSQL()
 {
-	SQLWCHAR sqlstate[1024];
-	SQLWCHAR message[1024];
-	if (SQL_SUCCESS == SQLGetDiagRec(handletype, handle, 1, sqlstate, NULL, message, 1024, NULL))
-		wcout << "Message: " << message << "\nSQLSTATE: " << sqlstate << endl;
-}
-
-
-int main(int argc, char* argv[])
-{
-	setlocale(LC_CTYPE, "rus");
-	
 	HRESULT hr = S_OK;
 	try
 	{
 		CoInitialize(NULL);
-		// Define string variables.
+		// Define string variables. "Provider=SQLOLEDB.1;Persist Security Info=True; User ID=sa;Password=1;Initial Catalog=web-adku;Data Source=srv-tm-ias;"
 		_bstr_t strCnn("Provider=SQLOLEDB.1;Persist Security Info=True; User ID=sa;Password=1;Initial Catalog=web-adku;Data Source=srv-tm-ias;");
-		
+
 		_RecordsetPtr pRstAuthors = NULL;
 
 		// Call Create instance to instantiate the Record set
@@ -211,7 +53,6 @@ int main(int argc, char* argv[])
 		if (FAILED(hr))
 		{
 			printf("Failed creating record set instance\n");
-			return 0;
 		}
 
 		//Open the Record set for getting records from Author table
@@ -240,11 +81,176 @@ int main(int argc, char* argv[])
 	{
 		cout << ce.Description() << endl;
 		//printf("Error:%s\n", ce.Description());
-	  //printf(&ce.Error);
+		//printf(&ce.Error);
 	}
 
 	CoUninitialize();
+}
+
+/*bool Test()
+{
+	tinyxml2::XMLDocument xml_doc;
+
+	tinyxml2::XMLError eResult = xml_doc.LoadFile("C:\\inetpub\\wwwroot\\adku.web\\Web.config");
 	
+	if (eResult != tinyxml2::XML_SUCCESS) return false; // Здесь возникает ошибка чтения
+	tinyxml2::XMLNode* root = xml_doc.FirstChildElement("configuration");
+	if (root == nullptr) return false;
+	tinyxml2::XMLElement* element = root->FirstChildElement("appSettings")->FirstChildElement("add");
+	if (element == nullptr) return false; 
+	return true;
+}*/
+
+
+// Helper function to create a VT_BSTR variant from a null terminated string. 
+HRESULT VariantFromString(PCWSTR wszValue, VARIANT &Variant)
+{
+	HRESULT hr = S_OK;
+	BSTR bstr = SysAllocString(wszValue);
+	CHK_ALLOC(bstr);
+
+	V_VT(&Variant) = VT_BSTR;
+	V_BSTR(&Variant) = bstr;
+
+CleanUp:
+	return hr;
+} 
+
+HRESULT CreateAndInitDOM(IXMLDOMDocument **ppDoc)
+{
+	HRESULT hr = CoCreateInstance(__uuidof(DOMDocument60), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(ppDoc));
+	if (SUCCEEDED(hr))
+	{
+		// these methods should not fail so don't inspect result
+		(*ppDoc)->put_async(VARIANT_FALSE);
+		(*ppDoc)->put_validateOnParse(VARIANT_FALSE);
+		(*ppDoc)->put_resolveExternals(VARIANT_FALSE);
+	}
+	return hr;
+}
+
+HRESULT ReportParseError(IXMLDOMDocument *pDoc, char *szDesc)
+{
+	HRESULT hr = S_OK;
+	HRESULT hrRet = E_FAIL; // Default error code if failed to get from parse error.
+	IXMLDOMParseError *pXMLErr = NULL;
+	BSTR bstrReason = NULL;
+
+	CHK_HR(pDoc->get_parseError(&pXMLErr));
+	CHK_HR(pXMLErr->get_errorCode(&hrRet));
+	CHK_HR(pXMLErr->get_reason(&bstrReason));
+	printf("%s\n%S\n", szDesc, bstrReason);
+
+CleanUp:
+	SAFE_RELEASE(pXMLErr);
+	SysFreeString(bstrReason);
+	return hrRet;
+}
+
+
+wstring queryNodes()
+{
+	HRESULT hr = S_OK;
+	IXMLDOMDocument *pXMLDom = NULL;
+	IXMLDOMNodeList *pNodes = NULL;
+	IXMLDOMNode *pNode = NULL;
+
+	BSTR bstrQuery1 = NULL;
+	BSTR bstrNodeName = NULL;
+	BSTR bstrNodeValue = NULL;
+	VARIANT_BOOL varStatus;
+	VARIANT varFileName;
+	VariantInit(&varFileName);
+
+	CHK_HR(CreateAndInitDOM(&pXMLDom));
+
+	CHK_HR(VariantFromString(L"C:\\inetpub\\wwwroot\\adku.web\\Web.config", varFileName));
+	CHK_HR(pXMLDom->load(varFileName, &varStatus));
+	if (varStatus != VARIANT_TRUE)
+	{
+		CHK_HR(ReportParseError(pXMLDom, "Не получилось загрузить информацию с исхнодного файла"));
+	}
+
+	// Query a single node.
+	bstrQuery1 = SysAllocString(L"configuration/appSettings/add[@key = \"ConnectionString\"]/@value");
+	CHK_ALLOC(bstrQuery1);
+	CHK_HR(pXMLDom->selectSingleNode(bstrQuery1, &pNode));
+	if (pNode)
+	{
+
+		CHK_HR(pNode->get_nodeName(&bstrNodeName));
+		SysFreeString(bstrNodeName);
+		CHK_HR(pNode->get_xml(&bstrNodeValue));
+		SysFreeString(bstrNodeValue);
+		SAFE_RELEASE(pNode);
+		assert(bstrNodeValue != nullptr);
+		std::wstring str(bstrNodeValue, SysStringLen(bstrNodeValue));
+		return str;
+	}
+	else
+	{
+		CHK_HR(ReportParseError(pXMLDom, "Ошибка при парсинге файла"));
+	}
+
+	
+
+CleanUp:
+	SAFE_RELEASE(pXMLDom);
+	SAFE_RELEASE(pNodes);
+	SAFE_RELEASE(pNode);
+	SysFreeString(bstrQuery1);
+	SysFreeString(bstrNodeName);
+	SysFreeString(bstrNodeValue);
+	VariantClear(&varFileName);
+
+	
+}
+
+wstring get_value(wstring source, wstring item) {
+	int start_it = source.find(item) + item.length() + 1;
+	int end_it = source.find_first_of(';' , start_it);
+	if (end_it == -1) {
+		end_it = source.find_last_of('"');
+	}
+	return source.substr(start_it, end_it - start_it);
+}
+
+int main(int argc, char* argv[])
+{
+	setlocale(LC_CTYPE, "rus");
+	
+	wstring query_res;
+	
+	HRESULT hr = CoInitialize(NULL);
+	if (SUCCEEDED(hr))
+	{
+		query_res =  queryNodes();
+
+		CoUninitialize();
+	}
+	
+	cout << get_value(query_res, L"user id") << endl;
+	cout << get_value(query_res, L"data source") << endl;
+	cout << get_value(query_res, L"persist security info") << endl;
+	cout << get_value(query_res, L"initial catalog") << endl;
+	cout << get_value(query_res, L"password") << endl;
+
+	connectSQL();
+	//tinyxml2::XMLDocument xml_doc;
+
+	//tinyxml2::XMLError eResult = xml_doc.LoadFile("C:\\inetpub\\wwwroot\\adku.web\\Web.config");
+
+	//if (eResult != tinyxml2::XML_SUCCESS) return false; // Здесь возникает ошибка чтения
+	//tinyxml2::XMLNode* root = xml_doc.FirstChildElement("configuration");	
+	//tinyxml2::XMLAttribute* attribute= element -> QueryAttribute("key");
+
+	//const char str;
+	//eResult = element->Attribute("value", str) //("value", str);
+	//string str = element.FindAttribute("value");
+	//string str = xml_doc.FirstChildElement("configuration")->FirstChildElement("appSettings")->FirstChildElement("add")->NextSiblingElement()->Attribute("value");
+	//std::cout << str << endl;
+	
+
 	
 
 	std::system("pause");

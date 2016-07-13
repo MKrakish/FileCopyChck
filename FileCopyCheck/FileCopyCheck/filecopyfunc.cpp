@@ -1,8 +1,17 @@
-#include "filecopyfunc.h"
+
 #include "stdafx.h"
+#include "filecopyfunc.h"
 using namespace std;
 using namespace std::tr2::sys;
 
+wstring get_value(wstring source, wstring item) {
+	int start_it = source.find(item) + item.length() + 1;
+	int end_it = source.find_first_of(';', start_it);
+	if (end_it == -1) {
+		end_it = source.find_last_of('"');
+	}
+	return source.substr(start_it, end_it - start_it);
+}
 
 //функция получения пути через итератор
 path getPath(recursive_directory_iterator it) {
@@ -70,19 +79,19 @@ path get_path() {
 
 path copyPath(path filepath, path destpath) {
 	wstring folderName = destpath.stem().wstring();
-	int start = filepath.wstring().find_last_of(folderName, filepath.wstring().length()) + 1;
+	int start = filepath.wstring().rfind(folderName, filepath.wstring().length())+folderName.length()-0;
 	wstring addpath = filepath.wstring().substr(start);
 	path cpPath(destpath.wstring() + addpath);
 	return cpPath;
 }
 
-void copyFolder() {
-	time_t t = time(NULL);
-	tm* aTm = localtime(&t);
-	std::cout << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
+void copyFolder(wstring dest) {
+	
 	wstring source; path sourceFolder;
-	wstring dest; path destinationFolder;
+	//wstring dest;
+	path destinationFolder;
 	int rcount = 0;
+	ofstream log("log.txt", ios_base::app);
 	std::cout << "Введите путь исходной папки." << endl;
 	while (!exists(sourceFolder)) {
 		sourceFolder = get_path();
@@ -91,40 +100,43 @@ void copyFolder() {
 		}
 		std::cout << "Данный путь не существует. Введите новый." << endl;
 	}
-	std::cout << "Введите путь конечной папки." << endl;
-	while (!exists(destinationFolder.parent_path()) || (sourceFolder.stem() != destinationFolder.stem()) || (destinationFolder == sourceFolder)) {
-		destinationFolder = get_path();
+	//std::cout << "Введите путь конечной папки." << endl;
+	//while (!exists(destinationFolder.parent_path()) || (sourceFolder.stem() != destinationFolder.stem()) || (destinationFolder == sourceFolder)) {
+		destinationFolder = path(dest);
 		bool f = sourceFolder.stem() != destinationFolder.stem();
 		if (sourceFolder.stem() != destinationFolder.stem()) {
 			std::cout << "Названия папок не идентичны" << endl;
-			continue;
+			std::cout << sourceFolder.stem() << " " << destinationFolder.stem() << endl;
+			return;
+			//continue; 
 		}
 		if (sourceFolder == destinationFolder) {
 			std::cout << "Эта та же самая папка, чувак" << endl;
-			continue;
+			return;
+			//continue;
 		}
 		if (exists(destinationFolder.parent_path())) {
-			continue;
+			//continue;
 		}
-		std::cout << "Промежуточные папки не существуют. Введите новый путь." << endl;
-	}
+		//std::cout << "Промежуточные папки не существуют. Введите новый путь." << endl;
+	//}
 
 
 
 
 
-	ofstream log("log.txt", ios_base::trunc);
-	log << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
+	
 	recursive_directory_iterator it_source(sourceFolder);
 	const recursive_directory_iterator it_end;
 
 
 	if (!exists(destinationFolder)) {
+		//std::cout << destinationFolder << endl;
 		create_directory(destinationFolder);
 	}
 
 
-	std::cout << "ПКБ \"АСУ-Нефть\" 2016." << endl;
+	
 	std::cout << "Копирование началось" << endl;
 	int count = 0;
 	while (it_source != it_end)
@@ -141,6 +153,7 @@ void copyFolder() {
 		{
 			create_directories(newpath.parent_path());
 			copy(ps, newpath); count++;
+			std::cout << newpath << endl;
 			log << newpath << "\t" << "Был скопирован" << endl;
 		}
 		else {

@@ -4,7 +4,7 @@
 //
 
 #pragma once
-
+#pragma comment(lib, "mpr.lib")
 
 
 #include <stdio.h>

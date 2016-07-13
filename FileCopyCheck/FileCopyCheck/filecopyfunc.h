@@ -14,6 +14,8 @@
 using namespace std;
 using namespace std::tr2::sys;
 
+wstring get_value(wstring, wstring);
+
 path getPath(recursive_directory_iterator);
 
 //функция вывода путей сразу с двух папок
@@ -33,5 +35,5 @@ path get_path();
 
 path copyPath(path, path);
 
-void copyFolder();
+void copyFolder(wstring);
 #endif

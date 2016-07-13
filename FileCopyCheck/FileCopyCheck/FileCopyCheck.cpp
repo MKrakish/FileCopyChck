@@ -1,20 +1,11 @@
 // FileCopyCheck.cpp: определяет точку входа для консольного приложения.
-//
-//#define _CRT_SECURE_NO_WARNINGS
-//#define INITGUID
-//#define DBINITCONSTANTS
-//#ifndef XMLCheckResult	\
-#define XMLCheckResult(a_eResult) if (a_eResult != XML_SUCCESS) { printf("Error: %i\n", a_eResult); return a_eResult; }	\
-#endif
 
-//#import "msado15.dll" 
 #include "stdafx.h"
 #include <stdio.h>
 #include <windows.h>
-//#include "TinyXML\tinyxml2.h"
-//#include "TinyXML\tinyxml2.cpp"
+
 #include <objbase.h>
-#include <MsXml6.h> raw_interfaces_only
+#include <MsXml6.h> //raw_interfaces_only
 
 #include "filecopyfunc.h"
 
@@ -34,21 +25,42 @@
 using namespace std;
 using namespace std::tr2::sys;
 
+DWORD NetConnect(wstring computer) {
+	DWORD dwRetVal;
+	wstring shit = L"\\\\" + computer + L"\\c$";
+	NETRESOURCE nr;
+	DWORD dwFlags;
+	nr.dwType = RESOURCETYPE_DISK;
+	nr.lpLocalName = NULL; // explicitly set this to NULL
+	nr.lpRemoteName = const_cast<LPWSTR>(shit.c_str());
+	nr.lpProvider = NULL;
+
+	dwFlags = CONNECT_UPDATE_PROFILE;
+
+	dwRetVal = WNetAddConnection2(&nr, L"1", L"Администратор", dwFlags);
+
+	return dwRetVal;
+}
 
 
-void connectSQL()
+
+void connectSQL(wstring id, wstring pass, wstring dsource, wstring ctlg, wstring security)
 {
 	HRESULT hr = S_OK;
+	
 	try
 	{
 		CoInitialize(NULL);
 		// Define string variables. "Provider=SQLOLEDB.1;Persist Security Info=True; User ID=sa;Password=1;Initial Catalog=web-adku;Data Source=srv-tm-ias;"
-		_bstr_t strCnn("Provider=SQLOLEDB.1;Persist Security Info=True; User ID=sa;Password=1;Initial Catalog=web-adku;Data Source=srv-tm-ias;");
+		wstring initialstring = L"Provider=SQLOLEDB.1;Persist Security Info=" + security + L"; User ID=" + id + L";Password=" + pass + L";Initial Catalog=" + ctlg + L";Data Source=" + dsource + L";";
+		assert(!initialstring.empty());
+		BSTR bstr_initstr = SysAllocStringLen(initialstring.data(), initialstring.size());
+		_bstr_t strCnn(bstr_initstr);
 
-		_RecordsetPtr pRstAuthors = NULL;
+		_RecordsetPtr pRstServerNames = NULL;
 
 		// Call Create instance to instantiate the Record set
-		hr = pRstAuthors.CreateInstance(__uuidof(Recordset));
+		hr = pRstServerNames.CreateInstance(__uuidof(Recordset));
 
 		if (FAILED(hr))
 		{
@@ -56,50 +68,63 @@ void connectSQL()
 		}
 
 		//Open the Record set for getting records from Author table
-		pRstAuthors->Open("SELECT connectionstring from branches", strCnn, adOpenStatic, adLockReadOnly, adCmdText);
+		pRstServerNames->Open("SELECT connectionstring from branches", strCnn, adOpenStatic, adLockReadOnly, adCmdText);
 
 		//Declare a variable of type _bstr_t
 		_bstr_t valField1;
-		int valField2;
+		//int valField2;
 
-		pRstAuthors->MoveFirst();
-
+		pRstServerNames->MoveFirst();
+		ofstream log("log.txt", ios_base::app);
 		//Loop through the Record set
-		if (!pRstAuthors->adoEOF)
+		if (!pRstServerNames->adoEOF)
 		{
-			while (!pRstAuthors->adoEOF)
+			wstring *serverNameArray = new wstring[20]; int  i = 0;
+			while (!pRstServerNames->adoEOF)
 			{
-				valField1 = pRstAuthors->Fields->GetItem("connectionstring")->Value;
+				valField1 = pRstServerNames->Fields->GetItem("connectionstring")->Value;
 				//valField2 = pRstAuthors->Fields->GetItem("Author_ID")->Value.intVal;
-				cout << ((LPCSTR)valField1) << endl;
-				pRstAuthors->MoveNext();
+				//cout << ((LPCSTR)valField1) << endl;
+				wstring serverName(valField1, SysStringLen(valField1));
+				//cout << get_value(serverName, L"server")<< endl;
+				 int c = 0;
+					serverNameArray[i] = get_value(serverName, L"server");
+					for (int j = 0; j < i; j++) {
+						if (serverNameArray[i] == serverNameArray[j]) {
+							c = 1;
+						}
+					}
+					if (c != 1) {
+						cout << "\nПодключаюсь к " << serverNameArray[i] << endl;
+						log << "\nПодключаюсь к " << serverNameArray[i] << endl;
+						if (NetConnect(serverNameArray[i]) != NO_ERROR) {
+							cout << "\nОшибка соединения с " << serverNameArray[i] << endl;
+							log << "\nОшибка соединения с " << serverNameArray[i] << endl;
+							continue;
+						}
+						cout << "\nКопирую на "<<serverNameArray[i] << endl;
+						log << "\nКопирую на " << serverNameArray[i] << endl;
+						wstring copyTo= L"\\\\" + serverNameArray[i] + L"\\c$\\Temp\\SUZUN";
+						copyFolder(copyTo);
+					}
+				
+				
+				pRstServerNames->MoveNext();
+				i++;
 			}
 		}
-
+		log.close();
 	}
 	catch (_com_error &ce)
 	{
+		ofstream log("log.txt", ios_base::app);
 		cout << ce.Description() << endl;
-		//printf("Error:%s\n", ce.Description());
-		//printf(&ce.Error);
+		log << ce.Description() << endl;
+		log.close();
 	}
-
+	
 	CoUninitialize();
 }
-
-/*bool Test()
-{
-	tinyxml2::XMLDocument xml_doc;
-
-	tinyxml2::XMLError eResult = xml_doc.LoadFile("C:\\inetpub\\wwwroot\\adku.web\\Web.config");
-	
-	if (eResult != tinyxml2::XML_SUCCESS) return false; // Здесь возникает ошибка чтения
-	tinyxml2::XMLNode* root = xml_doc.FirstChildElement("configuration");
-	if (root == nullptr) return false;
-	tinyxml2::XMLElement* element = root->FirstChildElement("appSettings")->FirstChildElement("add");
-	if (element == nullptr) return false; 
-	return true;
-}*/
 
 
 // Helper function to create a VT_BSTR variant from a null terminated string. 
@@ -161,7 +186,7 @@ wstring queryNodes()
 	VARIANT_BOOL varStatus;
 	VARIANT varFileName;
 	VariantInit(&varFileName);
-
+	wstring nullstring = L"";
 	CHK_HR(CreateAndInitDOM(&pXMLDom));
 
 	CHK_HR(VariantFromString(L"C:\\inetpub\\wwwroot\\adku.web\\Web.config", varFileName));
@@ -169,6 +194,7 @@ wstring queryNodes()
 	if (varStatus != VARIANT_TRUE)
 	{
 		CHK_HR(ReportParseError(pXMLDom, "Не получилось загрузить информацию с исхнодного файла"));
+		return nullstring;
 	}
 
 	// Query a single node.
@@ -190,6 +216,7 @@ wstring queryNodes()
 	else
 	{
 		CHK_HR(ReportParseError(pXMLDom, "Ошибка при парсинге файла"));
+		return nullstring;
 	}
 
 	
@@ -206,14 +233,6 @@ CleanUp:
 	
 }
 
-wstring get_value(wstring source, wstring item) {
-	int start_it = source.find(item) + item.length() + 1;
-	int end_it = source.find_first_of(';' , start_it);
-	if (end_it == -1) {
-		end_it = source.find_last_of('"');
-	}
-	return source.substr(start_it, end_it - start_it);
-}
 
 int main(int argc, char* argv[])
 {
@@ -229,30 +248,20 @@ int main(int argc, char* argv[])
 		CoUninitialize();
 	}
 	
-	cout << get_value(query_res, L"user id") << endl;
-	cout << get_value(query_res, L"data source") << endl;
-	cout << get_value(query_res, L"persist security info") << endl;
-	cout << get_value(query_res, L"initial catalog") << endl;
-	cout << get_value(query_res, L"password") << endl;
-
-	connectSQL();
-	//tinyxml2::XMLDocument xml_doc;
-
-	//tinyxml2::XMLError eResult = xml_doc.LoadFile("C:\\inetpub\\wwwroot\\adku.web\\Web.config");
-
-	//if (eResult != tinyxml2::XML_SUCCESS) return false; // Здесь возникает ошибка чтения
-	//tinyxml2::XMLNode* root = xml_doc.FirstChildElement("configuration");	
-	//tinyxml2::XMLAttribute* attribute= element -> QueryAttribute("key");
-
-	//const char str;
-	//eResult = element->Attribute("value", str) //("value", str);
-	//string str = element.FindAttribute("value");
-	//string str = xml_doc.FirstChildElement("configuration")->FirstChildElement("appSettings")->FirstChildElement("add")->NextSiblingElement()->Attribute("value");
-	//std::cout << str << endl;
 	
-
-	
-
+	wstring id				= get_value(query_res, L"user id");
+	wstring dataSource		= get_value(query_res, L"data source");
+	wstring securityInfo	= get_value(query_res, L"persist security info");
+	wstring catalog			= get_value(query_res, L"initial catalog");
+	wstring pass			= get_value(query_res, L"password");
+	time_t t = time(NULL);
+	tm* aTm = localtime(&t);
+	std::cout << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
+	std::cout << "ПКБ \"АСУ-Нефть\" 2016." << endl;
+	ofstream log("log.txt", ios_base::trunc);
+	log << aTm->tm_hour << ":" << aTm->tm_min << ":" << aTm->tm_sec << " " << aTm->tm_mday << "/" << aTm->tm_mon + 1 << "/" << 1900 + aTm->tm_year << endl;
+	connectSQL(id, pass, dataSource, catalog, securityInfo);
+	log.close();
 	std::system("pause");
     return 0;
 } 
